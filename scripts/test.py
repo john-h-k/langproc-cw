@@ -49,7 +49,7 @@ PROJECT_LOCATION = SCRIPT_LOCATION.joinpath("..").resolve()
 OUTPUT_FOLDER = PROJECT_LOCATION.joinpath("bin/output").resolve()
 J_UNIT_OUTPUT_FILE = PROJECT_LOCATION.joinpath("bin/junit_results.xml").resolve()
 COMPILER_TEST_FOLDER = PROJECT_LOCATION.joinpath("compiler_tests").resolve()
-COMPILER_FILE = PROJECT_LOCATION.joinpath("bin/c_compiler").resolve()
+COMPILER_FILE = "/root/repos/jcc/build/jcc"
 COVERAGE_FOLDER = PROJECT_LOCATION.joinpath("coverage").resolve()
 
 BUILD_TIMEOUT_SECONDS = 60
@@ -213,7 +213,15 @@ def run_test(driver: Path) -> Result:
 
     # Compile
     return_code, _, timed_out = run_subprocess(
-        cmd=[COMPILER_FILE, "-S", to_assemble, "-o", f"{log_path}.s"],
+        cmd=[
+            COMPILER_FILE,
+            to_assemble,
+            "-T",  # target
+            "rv32i-unknown-elf",
+            "-c",  # generate object file, don't link
+            "-o",
+            f"{log_path}.o",
+        ],
         timeout=RUN_TIMEOUT_SECONDS,
         env=custom_env,
         log_path=f"{log_path}.compiler",
@@ -222,31 +230,57 @@ def run_test(driver: Path) -> Result:
         msg = f"\t> Failed to compile testcase: \n\t {compiler_log_file_str}"
         return Result(test_case_name=test_name, return_code=return_code, passed=False, timeout=timed_out, error_log=msg)
 
-    # GCC Reference Output
-    return_code, _, timed_out = run_subprocess(
-        cmd=[
-                "riscv64-unknown-elf-gcc", "-std=c90", "-pedantic", "-ansi", "-O0", "-march=rv32imfd", "-mabi=ilp32d",
-                "-o", f"{log_path}.gcc.s", "-S", to_assemble
-            ],
-        timeout=RUN_TIMEOUT_SECONDS,
-        log_path=f"{log_path}.reference",
-    )
-    if return_code != 0:
-        msg = f"\t> Failed to generate reference: \n\t {compiler_log_file_str} \n\t {relevant_files('reference')}"
-        return Result(test_case_name=test_name, return_code=return_code, passed=False, timeout=timed_out, error_log=msg)
+    # # GCC Reference Output
+    # return_code, _, timed_out = run_subprocess(
+    #     cmd=[
+    #         "riscv64-unknown-elf-gcc",
+    #         "-std=c90",
+    #         "-pedantic",
+    #         "-ansi",
+    #         "-O0",
+    #         "-march=rv32imfd",
+    #         "-mabi=ilp32d",
+    #         "-o",
+    #         f"{log_path}.gcc.s",
+    #         "-S",
+    #         to_assemble,
+    #     ],
+    #     timeout=RUN_TIMEOUT_SECONDS,
+    #     log_path=f"{log_path}.reference",
+    # )
+    # if return_code != 0:
+    #     msg = f"\t> Failed to generate reference: \n\t {compiler_log_file_str} \n\t {relevant_files('reference')}"
+    #     return Result(
+    #         test_case_name=test_name,
+    #         return_code=return_code,
+    #         passed=False,
+    #         timeout=timed_out,
+    #         error_log=msg,
+    #     )
 
     # Assemble
-    return_code, _, timed_out = run_subprocess(
-        cmd=[
-                "riscv64-unknown-elf-gcc", "-march=rv32imfd", "-mabi=ilp32d",
-                "-o", f"{log_path}.o", "-c", f"{log_path}.s"
-            ],
-        timeout=RUN_TIMEOUT_SECONDS,
-        log_path=f"{log_path}.assembler",
-    )
-    if return_code != 0:
-        msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('assembler')}"
-        return Result(test_case_name=test_name, return_code=return_code, passed=False, timeout=timed_out, error_log=msg)
+    # return_code, _, timed_out = run_subprocess(
+    #     cmd=[
+    #         "riscv64-unknown-elf-gcc",
+    #         "-march=rv32imfd",
+    #         "-mabi=ilp32d",
+    #         "-o",
+    #         f"{log_path}.o",
+    #         "-c",
+    #         f"{log_path}.s",
+    #     ],
+    #     timeout=RUN_TIMEOUT_SECONDS,
+    #     log_path=f"{log_path}.assembler",
+    # )
+    # if return_code != 0:
+    #     msg = f"\t> Failed to assemble: \n\t {compiler_log_file_str} \n\t {relevant_files('assembler')}"
+    #     return Result(
+    #         test_case_name=test_name,
+    #         return_code=return_code,
+    #         passed=False,
+    #         timeout=timed_out,
+    #         error_log=msg,
+    #     )
 
     # Link
     return_code, _, timed_out = run_subprocess(
@@ -483,12 +517,12 @@ def main():
     shutil.rmtree(OUTPUT_FOLDER, ignore_errors=True)
     Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
 
-    if not args.no_clean and not clean():
-        # Clean the repo if required and exit if this fails.
-        exit(2)
+    # if not args.no_clean and not clean():
+    #     # Clean the repo if required and exit if this fails.
+    #     exit(2)
 
-    if not make(silent=args.short):
-        exit(3)
+    # if not make(silent=args.short):
+    #     exit(3)
 
     with JUnitXMLFile(J_UNIT_OUTPUT_FILE) as xml_file:
         run_tests(args, xml_file)

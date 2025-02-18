@@ -6,12 +6,12 @@
 set -uo pipefail
 shopt -s globstar
 
-if [ "${DONT_CLEAN:-}" != "1" ]; then
-    make clean
-fi
+# if [ "${DONT_CLEAN:-}" != "1" ]; then
+#     make clean
+# fi
 
 set -e
-make bin/c_compiler
+# make bin/c_compiler
 set +e
 
 mkdir -p bin
@@ -34,6 +34,8 @@ fail_testcase() {
 
 SPECIFIC_FOLDER="${1:-**}"
 
+jcc=~/repos/jcc/build/jcc
+
 for DRIVER in compiler_tests/${SPECIFIC_FOLDER}/*_driver.c; do
     (( TOTAL++ ))
 
@@ -49,13 +51,14 @@ for DRIVER in compiler_tests/${SPECIFIC_FOLDER}/*_driver.c; do
     printf '%s\n' "<testcase name=\"${TO_ASSEMBLE}\">" >> "${J_UNIT_OUTPUT_FILE}"
 
     OUT="${LOG_FILE_BASE}"
-    ASAN_OPTIONS=exitcode=0 timeout --foreground 15s ./bin/c_compiler -S "${TO_ASSEMBLE}" -o "${OUT}.s" 2> "${LOG_FILE_BASE}.compiler.stderr.log" > "${LOG_FILE_BASE}.compiler.stdout.log"
+    # ASAN_OPTIONS=exitcode=0 timeout --foreground 15s $jcc "${TO_ASSEMBLE}" -T rv32i-unknown-elf -c -o "${OUT}.o"
+    ASAN_OPTIONS=exitcode=0 timeout --foreground 15s $jcc "${TO_ASSEMBLE}" -T rv32i-unknown-elf -c -o "${OUT}.o" 2> "${LOG_FILE_BASE}.compiler.stderr.log" > "${LOG_FILE_BASE}.compiler.stdout.log"
     if [ $? -ne 0 ]; then
         fail_testcase "Failed to compile testcase: \n\t ${LOG_FILE_BASE}.compiler.stderr.log \n\t ${LOG_FILE_BASE}.compiler.stdout.log \n\t ${OUT}.s \n\t ${OUT}.s.printed"
         continue
     fi
 
-    timeout --foreground 15s riscv64-unknown-elf-gcc -march=rv32imfd -mabi=ilp32d -o "${OUT}.o" -c "${OUT}.s" 2> "${LOG_FILE_BASE}.assembler.stderr.log" > "${LOG_FILE_BASE}.assembler.stdout.log"
+    # timeout --foreground 15s riscv64-unknown-elf-gcc -march=rv32imfd -mabi=ilp32d -o "${OUT}.o" -c "${OUT}.s" 2> "${LOG_FILE_BASE}.assembler.stderr.log" > "${LOG_FILE_BASE}.assembler.stdout.log"
     if [ $? -ne 0 ]; then
         fail_testcase "Failed to assemble: \n\t ${LOG_FILE_BASE}.compiler.stderr.log \n\t ${LOG_FILE_BASE}.compiler.stdout.log \n\t ${LOG_FILE_BASE}.assembler.stderr.log \n\t ${LOG_FILE_BASE}.assembler.stdout.log \n\t ${OUT}.s \n\t ${OUT}.s.printed"
         continue
