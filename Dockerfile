@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --fix-missing \
     curl \
     device-tree-compiler \
     lcov \
+    unzip \
     nano
 
 # Install RISC-V Toolchain
@@ -63,5 +64,28 @@ WORKDIR /tmp/riscv-pk/build
 RUN ../configure --prefix=$RISCV --host=riscv64-unknown-elf --with-arch=rv32imfd --with-abi=ilp32d
 RUN make
 RUN make install
+
+# Install compiler explorer
+RUN git clone https://github.com/compiler-explorer/compiler-explorer.git /workspaces/compiler-explorer
+
+ # script that finds and runs compiler
+RUN echo 'exec "$(find /workspaces -maxdepth 1 -type d -name "langproc*" | head -n 1)/scripts/run.sh" "$@"' > /workspaces/compiler-run.sh && \
+    chmod +x /workspaces/compiler-run.sh
+
+EXPOSE 10240
+
+# Install fnm
+RUN curl -fsSL https://fnm.vercel.app/install | bash
+
+# compiler-explorer config
+RUN echo ' \n\
+        group.langproc.compilers=clangprocdefault \n\
+        compiler.clangprocdefault.exe=/workspaces/compiler-run.sh \n\
+        compiler.clangprocdefault.name=langproc' >> /workspaces/compiler-explorer/etc/config/c.defaults.properties
+
+RUN cp /workspaces/compiler-explorer/etc/config/c.defaults.properties /tmp/props \
+    && echo 'compilers=&gcc:&clang:&langproc' > /workspaces/compiler-explorer/etc/config/c.defaults.properties \
+    && tail +3 /tmp/props >> /workspaces/compiler-explorer/etc/config/c.defaults.properties
+
 
 ENTRYPOINT [ "/bin/bash" ]
